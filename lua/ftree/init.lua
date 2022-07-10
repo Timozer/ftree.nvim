@@ -1,24 +1,13 @@
 
 local M = {}
 
--- local function setup_autocommands(opts)
---   vim.cmd "au User FugitiveChanged,NeogitStatusRefreshed lua require'ftree.actions.reloaders'.reload_git()"
-
---   if opts.update_cwd then
---     vim.cmd "au DirChanged * lua require'ftree'.change_dir(vim.loop.cwd())"
---   end
---   if opts.update_focused_file.enable then
---     vim.cmd "au BufEnter * lua require'ftree'.find_file(false)"
---   end
-
--- end
-
 function M.setup(opts)
     opts = opts or {}
 
     require("ftree.icons").setup(opts.icons)
     require("ftree.log").setup(opts.log or { level = "debug", path = "ftree.log" })
     require("ftree.actions").setup(opts.actions)
+    M.ResetHighlights()
 
     local tree = require("ftree.node").New()
     local view = require("ftree.view")
