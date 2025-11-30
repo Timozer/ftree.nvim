@@ -1,34 +1,38 @@
-
 local utils = require("ftree.utils")
 local icons = require("ftree.icons")
 
-lines = {
-    {
-        line = "xxx",
-        node = node,
-        highlights = {}
-    }
+local M = {
+    instances = {}, -- 每个 tab 的实例
+    default_opts = nil, -- 存储默认选项
 }
 
-local M = {
-    lines      = {},
-    view       = nil,
-    tree       = nil,
-    lines      = nil,
-    gitstatus  = nil,
-    filter     = nil,
-}
+local function get_instance()
+    local tabpage = vim.api.nvim_get_current_tabpage()
+    if not M.instances[tabpage] then
+        M.instances[tabpage] = {
+            lines = {},
+            view = M.default_opts and M.default_opts.view or nil,
+            tree = M.default_opts and M.default_opts.tree or nil,
+            gitstatus = nil,
+            filter = nil,
+            keymaps = M.default_opts and M.default_opts.keymaps or nil,
+        }
+    end
+    return M.instances[tabpage]
+end
 
 function M._RefreshGitStatus()
-    M.gitstatus = nil
-    local ret = require("ftree.git").Status(M.tree.abs_path)
+    local instance = get_instance()
+    instance.gitstatus = nil
+    local ret = require("ftree.git").Status(instance.tree.abs_path)
     if ret.result == "success" then
-        M.gitstatus = ret.data
+        instance.gitstatus = ret.data
     end
 end
 
 function M._RefreshLines()
-    err = M.GetTreeContext(M.tree, 0)
+    local instance = get_instance()
+    err = M.GetTreeContext(instance.tree, 0)
     if err then
         -- TODO:
         require("ftree.utils").Notify("[FTree] Error: " .. vim.inspect(err), vim.log.levels.ERROR)
@@ -37,9 +41,10 @@ function M._RefreshLines()
 end
 
 function M.GetRenderContext()
+    local instance = get_instance()
     local lines = {}
     local highlights = {}
-    for i, item in ipairs(M.lines) do
+    for i, item in ipairs(instance.lines) do
         table.insert(lines, item.line)
         for _, highlight in pairs(item.highlights) do
             highlight[2] = i - 1
@@ -50,18 +55,19 @@ function M.GetRenderContext()
 end
 
 function M.Draw()
-    if not M.tree or not M.view or not M.view.Visable() then
+    local instance = get_instance()
+    if not instance.tree or not instance.view or not instance.view.Visable() then
         return
     end
 
-    M.lines = {}
-    M.highlights = {}
+    instance.lines = {}
+    instance.highlights = {}
 
     M._RefreshGitStatus()
     M._RefreshLines()
 
     local lines, highlights = M.GetRenderContext()
-    M.view.Update(lines, highlights, M.keymaps['tree'])
+    instance.view.Update(lines, highlights, instance.keymaps['tree'])
 end
 
 function M.GetNodeIcon(node)
@@ -138,7 +144,8 @@ end
 -- }
 
 function M.GetGitIcon(node)
-    local stat = M.gitstatus and M.gitstatus[node.abs_path] or nil
+    local instance = get_instance()
+    local stat = instance.gitstatus and instance.gitstatus[node.abs_path] or nil
     if stat == nil then
         return "", ""
     end
@@ -160,7 +167,8 @@ end
 
 -- indent : icon : filename : gitstatus
 function M.GetTreeContext(tree, depth)
-    if M.filter and M.filter(tree, M.gitstatus) then
+    local instance = get_instance()
+    if instance.filter and instance.filter(tree, instance.gitstatus) then
         return
     end
 
@@ -175,7 +183,7 @@ function M.GetTreeContext(tree, depth)
     local name = tree.name
     local name_hl = gitstatus_hl
 
-    if M.tree == tree then
+    if instance.tree == tree then
         icon = ""
         icon_hl = ""
         name = utils.path_join {
@@ -196,7 +204,7 @@ function M.GetTreeContext(tree, depth)
             {gitstatus_hl, -1, #indent + #icon + #name, #indent + #icon + #name + #gitstatus},
         }
     }
-    table.insert(M.lines, new_line)
+    table.insert(instance.lines, new_line)
 
     if tree.ftype == "folder" and tree.status == "opened" then
         for _, node in ipairs(tree.nodes) do
@@ -208,8 +216,9 @@ function M.GetTreeContext(tree, depth)
 end
 
 function M.GetFocusedNode()
-    local cursor = M.view.GetCursor()
-    return M.lines[cursor[1]]["node"]
+    local instance = get_instance()
+    local cursor = instance.view.GetCursor()
+    return instance.lines[cursor[1]]["node"]
 end
 
 function M.DoAction(action)
@@ -223,16 +232,24 @@ function M.DoAction(action)
 end
 
 function M.Toggle()
-    if not M.view.Visable() then
-        M.view.Open()
-        M.Draw()
+    local instance = get_instance()
+    if not instance.view or not instance.view.Visable() then
+        -- 为当前 tab 创建新的树实例（如果不存在）
+        if not instance.tree then
+            instance.tree = require("ftree.node").New()
+        end
+        if instance.view then
+            instance.view.Open()
+            M.Draw()
+        end
     else
-        M.view.Close()
+        instance.view.Close()
     end
 end
 
 function M.Focus()
-    vim.api.nvim_set_current_win(M.view.GetWinid())
+    local instance = get_instance()
+    vim.api.nvim_set_current_win(instance.view.GetWinid())
 end
 
 function M.ShowTree(view, tree)
@@ -242,9 +259,13 @@ function M.ShowHelp(view)
 end
 
 function M.setup(opts)
-    M.view = opts and opts.view
-    M.tree = opts and opts.tree
-    M.keymaps = opts and opts.keymaps
+    -- 存储默认选项，以便用于后续创建的 tab 实例
+    M.default_opts = opts or {}
+    
+    local instance = get_instance()
+    instance.view = opts and opts.view
+    instance.tree = opts and opts.tree
+    instance.keymaps = opts and opts.keymaps
 end
 
 return M

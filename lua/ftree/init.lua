@@ -8,10 +8,10 @@ function M.setup(opts)
     require("ftree.actions").setup(opts.actions)
     M.ResetHighlights()
 
-    local tree = require("ftree.node").New()
     local view = require("ftree.view")
     local renderer = require("ftree.renderer")
-    renderer.setup({ view = view, tree = tree, keymaps = opts.keymaps })
+    -- 设置渲染器，树会在每次打开时创建
+    renderer.setup({ view = view, tree = nil, keymaps = opts.keymaps })
 
     vim.cmd "silent! autocmd! FileExplorer *"
     vim.cmd "autocmd VimEnter * ++once silent! autocmd! FileExplorer *"
