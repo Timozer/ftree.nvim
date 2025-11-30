@@ -1,5 +1,3 @@
-local has_notify, notify = pcall(require, "notify")
-
 local a = vim.api
 local uv = vim.loop
 
@@ -7,9 +5,14 @@ local M = {}
 
 M.is_windows = vim.fn.has "win32" == 1 or vim.fn.has "win32unix" == 1
 
-function M.Notify(msg)
+function M.Notify(msg, level, opts)
     vim.schedule(function()
-        vim.notify(msg)
+        -- 如果是 DEBUG 级别，只有在设置了调试环境变量时才显示
+        if level == vim.log.levels.DEBUG and not os.getenv("FTREE_DEBUG") then
+            return
+        end
+        opts = opts or { title = "FTree" }
+        vim.notify(msg, level or vim.log.levels.INFO, opts)
     end)
 end
 
@@ -32,15 +35,7 @@ function M.path_to_matching_str(path)
     return path:gsub("(%-)", "(%%-)"):gsub("(%.)", "(%%.)"):gsub("(%_)", "(%%_)")
 end
 
-function M.warn(msg)
-    vim.schedule(function()
-        if has_notify then
-            notify(msg, vim.log.levels.WARN, { title = "FTree" })
-        else
-            vim.notify("[FTree] " .. msg, vim.log.levels.WARN)
-        end
-    end)
-end
+
 
 function M.str_find(haystack, needle)
     return vim.fn.stridx(haystack, needle) ~= -1

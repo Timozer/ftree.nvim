@@ -1,4 +1,3 @@
-local Job = require("ftree.job")
 local utils = require("ftree.utils")
 
 local M = {}
@@ -50,24 +49,21 @@ function M.Status(cwd)
         result.stderr = "not a git repository"
     end
 
-    job = Job.New({
-        path = "git",
-        args = { "--no-optional-locks", "status", "--porcelain=v1", "-u", "--ignored=matching" },
-        cwd = cwd
-    })
-    job:Run()
+    local command = { "git", "--no-optional-locks", "status", "--porcelain=v1", "-u", "--ignored=matching" }
+    local git_job = vim.system(command, { cwd = cwd, timeout = 4000 })
+    local job_result = git_job:wait()
 
-    if job.status == -1 then
+    if job_result.code == -1 or job_result.code == nil then
         result.result = "timeout"
-    elseif job.status ~= 0 then
+    elseif job_result.code ~= 0 then
         result.result = "fail"
-        result.status = job.status
-        result.stderr = job.stderr
+        result.status = job_result.code
+        result.stderr = job_result.stderr
     end
 
     result.result = "success"
     result.data = {}
-    for line in job.stdout:gmatch("[^\n]*\n") do
+    for line in (job_result.stdout or ""):gmatch("[^\n]*\n") do
         local status = line:sub(1, 2)
         -- removing `"` when git is returning special file status containing spaces
         local path = line:sub(4, -2):gsub('^"', ""):gsub('"$', "")

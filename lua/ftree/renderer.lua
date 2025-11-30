@@ -1,5 +1,4 @@
 
-local log = require("ftree.log")
 local utils = require("ftree.utils")
 local icons = require("ftree.icons")
 
@@ -32,7 +31,7 @@ function M._RefreshLines()
     err = M.GetTreeContext(M.tree, 0)
     if err then
         -- TODO:
-        log.error("Error: %s\n", vim.inspect(err))
+        require("ftree.utils").Notify("[FTree] Error: " .. vim.inspect(err), vim.log.levels.ERROR)
         return
     end
 end

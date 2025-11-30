@@ -5,7 +5,6 @@ function M.setup(opts)
     opts = opts or {}
 
     require("ftree.icons").setup(opts.icons)
-    require("ftree.log").setup(opts.log or { level = "debug", path = "ftree.log" })
     require("ftree.actions").setup(opts.actions)
     M.ResetHighlights()
 

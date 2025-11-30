@@ -1,6 +1,4 @@
 local utils = require('ftree.utils')
-local job = require('ftree.job')
-local log = require('ftree.log')
 local buf = require('ftree.buf')
 
 local M = {
@@ -22,8 +20,8 @@ end
 
 function M.OpenFileFunc(mode)
     return function(node)
-        local tabpage = api.nvim_get_current_tabpage()
-        local win_ids = api.nvim_tabpage_list_wins(tabpage)
+        local tabpage = vim.api.nvim_get_current_tabpage()
+        local win_ids = vim.api.nvim_tabpage_list_wins(tabpage)
 
         for _, winnr in ipairs(win_ids) do
             if node.abs_path == vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(winnr)) then
@@ -130,27 +128,19 @@ function M.NewFile(node, renderer)
         end
 
         local dir = vim.fn.fnamemodify(fname, ":h")
-        local job_mkdir = job.New({
-            path = "mkdir",
-            args = { "-p", dir },
-            cwd = tmpNode.abs_path, 
-        })
-        job_mkdir:Run()
-        if job_mkdir.status ~= 0 then
-            utils.Notify("fail to create " .. fname .. ", err: " .. job_mkdir.stderr)
+        local job_mkdir = vim.system({ "mkdir", "-p", dir }, { cwd = tmpNode.abs_path, timeout = 4000 })
+        local result_mkdir = job_mkdir:wait()
+        if result_mkdir.code ~= 0 then
+            utils.Notify("fail to create " .. fname .. ", err: " .. (result_mkdir.stderr or ""))
             return
         end
 
         local filename = vim.fn.fnamemodify(fname, ":t")
         if #filename > 0 then
-            local job_touch = job.New({
-                path = "touch",
-                args = { fname },
-                cwd = tmpNode.abs_path, 
-            })
-            job_touch:Run()
-            if job_touch.status ~= 0 then
-                utils.Notify("fail to create " .. fname .. ", err: " .. job_touch.stderr)
+            local job_touch = vim.system({ "touch", fname }, { cwd = tmpNode.abs_path, timeout = 4000 })
+            local result_touch = job_touch:wait()
+            if result_touch.code ~= 0 then
+                utils.Notify("fail to create " .. fname .. ", err: " .. (result_touch.stderr or ""))
                 return
             end
         end
@@ -178,14 +168,10 @@ function M.RenameFile(node)
             return
         end
 
-        local job_mv = job.New({
-            path = "mv",
-            args = { node.name, fname },
-            cwd = dir, 
-        })
-        job_mv:Run()
-        if job_mv.status ~= 0 then
-            utils.Notify("fail to rename " .. fname .. ", err: " .. job_mv.stderr)
+        local job_mv = vim.system({ "mv", node.name, fname }, { cwd = dir, timeout = 4000 })
+        local result_mv = job_mv:wait()
+        if result_mv.code ~= 0 then
+            utils.Notify("fail to rename " .. fname .. ", err: " .. (result_mv.stderr or ""))
             return
         end
 
@@ -220,13 +206,10 @@ function M.RemoveFile(node, renderer)
         return
     end
 
-    local job_rm = job.New({
-        path = "rm",
-        args = { "-r", "-f", node.abs_path },
-    })
-    job_rm:Run()
-    if job_rm.status ~= 0 then
-        utils.Notify("fail to remove " .. node.abs_path .. ", err: " .. job_rm.stderr)
+    local job_rm = vim.system({ "rm", "-r", "-f", node.abs_path }, { timeout = 4000 })
+    local result_rm = job_rm:wait()
+    if result_rm.code ~= 0 then
+        utils.Notify("fail to remove " .. node.abs_path .. ", err: " .. (result_rm.stderr or ""))
         return
     end
 
@@ -328,9 +311,9 @@ function M.Paste(node, renderer)
 
     local idx = 1
     while idx <= #M.action.data do
-        log.debug("idx: %d, paste: %s\n", idx, M.action.data[idx].abs_path)
         local dst = utils.path_join({paste_to.abs_path, M.action.data[idx].name})
 
+        local should_continue = false
         while true do
             if not utils.file_exists(dst) then
                 break
@@ -350,30 +333,35 @@ function M.Paste(node, renderer)
                     dst = fname
                 end)
                 if dst == "" then
-                    goto continue
+                    should_continue = true
+                    break
                 end
             elseif resp == "o" then
                 break
             else
-                goto continue
+                should_continue = true
+                break
             end
+        end
+
+        if should_continue then
+            idx = idx + 1
+            goto continue_loop
         end
 
         tmpArgs = { M.action.data[idx].abs_path, dst }
         for j, aval in ipairs(args) do
             table.insert(tmpArgs, j, aval)
         end
-        job_paste = job.New({path = cmd, args = tmpArgs})
-        job_paste:Run()
-        if job_paste.status ~= 0 then
-            msg = "paste: " .. M.action.data[idx].abs_path .. " to " .. dst .. " fail, err: " .. job_paste.stderr
+        job_paste = vim.system({cmd, unpack(tmpArgs)}, { timeout = 4000 })
+        local result_paste = job_paste:wait()
+        if result_paste.code ~= 0 then
+            msg = "paste: " .. M.action.data[idx].abs_path .. " to " .. dst .. " fail, err: " .. (result_paste.stderr or "")
             utils.Notify(msg)
-            log.debug(msg)
             break
         end
         msg = "paste " .. M.action.data[idx].abs_path .. " to " .. dst .. " done"
         utils.Notify(msg)
-        log.debug(msg)
 
         if M.action.data[idx].ftype == "folder" then
             buf.RenameBufByNamePrefix(M.action.data[idx].abs_path .. "/", dst .. "/")
@@ -381,9 +369,8 @@ function M.Paste(node, renderer)
             buf.RenameBufByNamePrefix(M.action.data[idx].abs_path, dst)
         end
 
-        ::continue::
-
         table.remove(M.action.data, idx)
+        ::continue_loop::
     end
 
     renderer.tree:Load()

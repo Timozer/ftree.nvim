@@ -1,7 +1,5 @@
 local utils = require "ftree.utils"
 
-local log = require("ftree.log")
-
 local M = {
     is_windows = vim.fn.has "win32" == 1,
 }
@@ -94,7 +92,7 @@ function M:Load()
             elseif t == "link" then
                 self:AddLink({ abs_path = path, name = name })
             else
-                log.warn("Unkown type: %s\n", t)
+                require("ftree.utils").Notify("[FTree] Unknown type: " .. (t or ""), vim.log.levels.WARN)
             end
         end
     end
@@ -125,7 +123,7 @@ function M.NodeCompare(lh, rh)
         elseif lh.ftype == "link" and lh.link_type == "folder" then
             return true
         elseif rh.ftype == "link" and rh.link_type == "folder" then
-            return fasle
+            return false
         elseif lh.ftype == "file" then
             return true
         elseif rh.ftype == "file" then
