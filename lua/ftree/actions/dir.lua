@@ -15,10 +15,12 @@ function M.DirToggle(node)
 end
 
 function M.DirIn(node, renderer)
-    if node.nodes ~= nil then
-        node:Expand()
-        renderer.tree = node
-        vim.api.nvim_command("cd " .. node.abs_path)
+    folder_node = node:FindFolderNode()
+    if folder_node.nodes ~= nil then
+        folder_node:Expand()
+        renderer.tree = folder_node
+        vim.api.nvim_command("cd " .. folder_node.abs_path)
+
         return true
     end
     return false
@@ -39,6 +41,7 @@ function M.DirOut(node, renderer)
 
     renderer.tree = cur_tree.parent
     vim.api.nvim_command("cd " .. renderer.tree.abs_path)
+
     return true
 end
 

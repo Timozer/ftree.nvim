@@ -30,7 +30,7 @@ function M.EditFile(node, renderer)
         return
     end
 
-    vim.api.nvim_set_current_win(renderer.view:GetValidPrevWinid())
+    vim.api.nvim_set_current_win(require('ftree.view').GetValidPrevWinid())
     pcall(vim.cmd, "edit "..vim.fn.fnameescape(node.ftype == "link" and node.link_to or node.abs_path))
 end
 
@@ -39,7 +39,7 @@ function M.SplitFile(node, renderer)
         return
     end
 
-    vim.api.nvim_set_current_win(renderer.view.GetValidPrevWinid())
+    vim.api.nvim_set_current_win(require('ftree.view').GetValidPrevWinid())
     pcall(vim.cmd, "sp "..vim.fn.fnameescape(node.ftype == "link" and node.link_to or node.abs_path))
 end
 
@@ -48,7 +48,7 @@ function M.VSplitFile(node, renderer)
         return
     end
 
-    vim.api.nvim_set_current_win(renderer.view.GetValidPrevWinid())
+    vim.api.nvim_set_current_win(require('ftree.view').GetValidPrevWinid())
     pcall(vim.cmd, "vsp "..vim.fn.fnameescape(node.ftype == "link" and node.link_to or node.abs_path))
 end
 

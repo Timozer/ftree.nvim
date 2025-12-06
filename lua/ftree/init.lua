@@ -35,7 +35,9 @@ end
 
 function M.CloseWhenOnlySelf()
     local wins = vim.api.nvim_list_wins()
-    if #wins == 1 and wins[1] == require("ftree.renderer").view:GetWinid() then
+    local renderer = require("ftree.renderer")
+    local winid = renderer.view and renderer.view:GetWinid()
+    if winid and #wins == 1 and wins[1] == winid then
         vim.cmd ":q"
     end
 end

@@ -144,6 +144,22 @@ function M.NodeCompare(lh, rh)
     return lh.name < rh.name
 end
 
+function M:FindFolderNode()
+    if self.ftype == "folder" or (self.ftype == "link" and self.link_type == "folder") then
+        return self
+    end
+
+    local current = self.parent
+    while current do
+        if current.ftype == "folder" or (current.ftype == "link" and current.link_type == "folder") then
+            return current
+        end
+        current = current.parent
+    end
+
+    return nil
+end
+
 function M:Expand()
     if self.ftype ~= "folder" and not (self.ftype == "link" and self.link_type == "folder") then
         return

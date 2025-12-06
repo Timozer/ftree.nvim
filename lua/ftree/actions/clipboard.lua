@@ -15,10 +15,11 @@ function M.ToggleMark(node, renderer)
         return
     end
 
-    local lnum = renderer.view.GetCursor()[1]
-    local signs = renderer.view.GetSign(lnum)[1]
-    if #signs.signs > 0 then
-        renderer.view.ClearSign(signs.signs[1].id)
+    local view = require('ftree.view')
+    local lnum = view.GetCursor()[1]
+    local signs = view.GetSign(lnum)[1]
+    if signs and #signs.signs > 0 then
+        view.ClearSign(signs.signs[1].id)
         for i, _ in ipairs(M.marks) do
             if M.marks[i] == node then
                 table.remove(M.marks, i)
@@ -26,7 +27,7 @@ function M.ToggleMark(node, renderer)
             end
         end
     else
-        renderer.view.SetSign("FTreeMark", lnum)
+        view.SetSign("FTreeMark", lnum)
         table.insert(M.marks, node)
     end
 end
@@ -36,7 +37,8 @@ function M.Copy(node, renderer)
     if #M.marks > 0 then
         M.action.data = M.marks
         M.marks = {}
-        renderer.view.ClearSign()
+        local view = require('ftree.view')
+        view.ClearSign()
     else
         M.action.data = {}
         table.insert(M.action.data, node)
@@ -48,7 +50,8 @@ function M.Cut(node, renderer)
     if #M.marks > 0 then
         M.action.data = M.marks
         M.marks = {}
-        renderer.view.ClearSign()
+        local view = require('ftree.view')
+        view.ClearSign()
     else
         M.action.data = {}
         table.insert(M.action.data, node)
@@ -187,7 +190,8 @@ function M._CloseActionInfo()
 end
 
 function M.ClearMarks(node, renderer)
-    renderer.view.ClearSign()
+    local view = require('ftree.view')
+    view.ClearSign()
     M.marks = {}
 end
 
